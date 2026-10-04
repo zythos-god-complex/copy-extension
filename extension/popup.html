@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font: 14px system-ui, sans-serif; width: 270px; padding: 12px; margin: 0; }
+    #status { margin-bottom: 8px; min-height: 18px; font-weight: 600; }
+    #sink { margin-bottom: 10px; font-size: 12px; color: #2e7d32; }
+    label { display: block; margin-bottom: 6px; cursor: pointer; }
+    button { width: 100%; padding: 6px; cursor: pointer; margin-top: 4px; }
+    #gate h3 { margin: 0 0 6px; font-size: 15px; }
+    #gate p { margin: 0 0 10px; font-size: 12px; color: #555; }
+    #pw { width: 100%; padding: 7px; box-sizing: border-box; }
+    #gerr { color: #c62828; font-size: 12px; min-height: 16px; margin-top: 6px; }
+    #lock { margin-top: 10px; background: #fbeaea; }
+    hr { border: none; border-top: 1px solid #eee; margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <div id="gate">
+    <h3>Locked</h3>
+    <p>Enter the password to activate auto-capture.</p>
+    <input type="password" id="pw" placeholder="Password" autocomplete="off">
+    <button id="unlock">Unlock</button>
+    <div id="gerr"></div>
+  </div>
+
+  <div id="main" hidden>
+    <div id="status">Working…</div>
+    <div id="sink">● Auto-capture ON across all sites → sending to your web inbox.</div>
+    <label><input type="checkbox" id="expand" checked> Expand collapsed sections</label>
+    <label><input type="checkbox" id="withImages" checked> Include images</label>
+    <label><input type="checkbox" id="silent" checked> Silent images (no extra requests)</label>
+    <button id="again">Copy everything again</button>
+    <button id="textOnly">Copy text only</button>
+    <button id="imgsOnly">Copy images only</button>
+    <hr>
+    <button id="lock">Lock extension</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

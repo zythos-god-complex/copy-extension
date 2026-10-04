@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Capture Inbox</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --line: #2a2f3a;
+    --fg: #e6e8ec; --muted: #9aa3b2; --accent: #6ea8fe; --ok: #58d68d;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+    font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--panel);
+    border-bottom: 1px solid var(--line); padding: 12px 16px;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0; font-weight: 650; }
+  header .spacer { flex: 1; }
+  .pill { font-size: 12px; color: var(--muted); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--muted); margin-right: 5px; vertical-align: middle; }
+  .dot.live { background: var(--ok); }
+  button { font: inherit; cursor: pointer; border: 1px solid var(--line);
+    background: var(--panel2); color: var(--fg); padding: 6px 10px; border-radius: 8px; }
+  button:hover { border-color: var(--accent); }
+  main { max-width: 860px; margin: 0 auto; padding: 16px; }
+  .gate { max-width: 360px; margin: 14vh auto; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+  .gate h2 { margin: 0 0 4px; font-size: 18px; }
+  .gate p { margin: 0 0 16px; color: var(--muted); font-size: 13px; }
+  .gate input { width: 100%; padding: 10px 12px; border-radius: 9px;
+    border: 1px solid var(--line); background: var(--panel2); color: var(--fg); }
+  .gate button { width: 100%; margin-top: 12px; padding: 10px; background: var(--accent);
+    color: #0b0d12; border: none; font-weight: 650; }
+  .gate .err { color: #ff6b6b; font-size: 12.5px; min-height: 16px; margin-top: 8px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px; margin-bottom: 14px; }
+  .card .top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .kind { font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+    padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .kind.text { color: var(--accent); border-color: #2d4a7a; }
+  .kind.image { color: #d7a6ff; border-color: #4a2d7a; }
+  .site { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; max-width: 46%; }
+  .url { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; flex: 1; }
+  .time { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .card .top .spacer { flex: 1; }
+  pre.text { white-space: pre-wrap; word-break: break-word; margin: 0;
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 9px;
+    padding: 10px 12px; max-height: 320px; overflow: auto; font: 12.5px/1.5 ui-monospace, monospace; }
+  .imgwrap { background: var(--panel2); border: 1px solid var(--line); border-radius: 9px; padding: 8px; }
+  .imgwrap img { max-width: 100%; max-height: 420px; display: block; border-radius: 6px; }
+  .actions { margin-top: 8px; display: flex; gap: 8px; }
+  .empty { color: var(--muted); text-align: center; padding: 48px 0; }
+  .copied { color: var(--ok) !important; border-color: var(--ok) !important; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+  <div id="gate" class="gate">
+    <h2>Capture Inbox</h2>
+    <p>Enter your password to view captured text &amp; images.</p>
+    <input id="pw" type="password" placeholder="Password" autocomplete="current-password" />
+    <button id="enter">View</button>
+    <div id="gateErr" class="err"></div>
+  </div>
+
+  <div id="app" hidden>
+    <header>
+      <h1>Capture Inbox</h1>
+      <span class="pill"><span id="dot" class="dot"></span><span id="count">0</span> items</span>
+      <div class="spacer"></div>
+      <label class="pill"><input type="checkbox" id="auto" checked> auto-refresh</label>
+      <button id="refresh">Refresh</button>
+      <button id="lock">Lock</button>
+    </header>
+    <main>
+      <div id="list"></div>
+      <div id="empty" class="empty">Nothing captured yet. Unlock the extension and browse.</div>
+    </main>
+  </div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let TOKEN = null;
+let timer = null;
+const seen = new Set();
+
+function fmtTime(iso) {
+  try { const d = new Date(iso); return d.toLocaleString(); } catch { return iso || ""; }
+}
+function esc(s) { return (s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+async function copyText(txt, btn) {
+  try { await navigator.clipboard.writeText(txt); }
+  catch {
+    const ta = document.createElement("textarea");
+    ta.value = txt; document.body.appendChild(ta); ta.select();
+    document.execCommand("copy"); ta.remove();
+  }
+  const old = btn.textContent; btn.textContent = "Copied ✓"; btn.classList.add("copied");
+  setTimeout(() => { btn.textContent = old; btn.classList.remove("copied"); }, 1200);
+}
+
+async function copyImage(src, btn) {
+  try {
+    const blob = await (await fetch(src)).blob();
+    await navigator.clipboard.write([new ClipboardItem({ [blob.type || "image/png"]: blob })]);
+    const old = btn.textContent; btn.textContent = "Copied ✓"; btn.classList.add("copied");
+    setTimeout(() => { btn.textContent = old; btn.classList.remove("copied"); }, 1200);
+  } catch (e) {
+    copyText(src, btn); // fallback: copy the image URL/data
+  }
+}
+
+function renderItem(item) {
+  const card = document.createElement("div");
+  card.className = "card";
+  const site = esc(item.site_title || "");
+  const url = esc(item.site_url || "");
+  card.innerHTML = `
+    <div class="top">
+      <span class="kind ${item.kind}">${item.kind}</span>
+      <span class="site" title="${site}">${site || "(untitled)"}</span>
+      <span class="url" title="${url}">${url}</span>
+      <span class="spacer"></span>
+      <span class="time">${fmtTime(item.created_at)}</span>
+    </div>`;
+  if (item.kind === "text") {
+    const pre = document.createElement("pre");
+    pre.className = "text";
+    pre.textContent = item.content;
+    card.appendChild(pre);
+    const actions = document.createElement("div");
+    actions.className = "actions";
+    const b = document.createElement("button");
+    b.textContent = "Copy text";
+    b.onclick = () => copyText(item.content, b);
+    actions.appendChild(b);
+    card.appendChild(actions);
+  } else {
+    const wrap = document.createElement("div");
+    wrap.className = "imgwrap";
+    const img = document.createElement("img");
+    img.loading = "lazy";
+    img.src = item.content;
+    img.onerror = () => { wrap.innerHTML = '<span class="pill">image unavailable — <a href="'+url+'" target="_blank">source</a></span>'; };
+    wrap.appendChild(img);
+    card.appendChild(wrap);
+    const actions = document.createElement("div");
+    actions.className = "actions";
+    const b = document.createElement("button");
+    b.textContent = "Copy image";
+    b.onclick = () => copyImage(item.content, b);
+    actions.appendChild(b);
+    card.appendChild(actions);
+  }
+  return card;
+}
+
+async function load() {
+  if (!TOKEN) return;
+  $("dot").classList.remove("live");
+  try {
+    const r = await fetch("/api/list?limit=150&token=" + encodeURIComponent(TOKEN));
+    if (r.status === 401) { doLock("Session expired — enter password again."); return; }
+    const { items } = await r.json();
+    const list = $("list");
+    // newest first; prepend any we haven't shown
+    const fresh = items.filter((it) => !seen.has(it.id));
+    for (const it of fresh) seen.add(it.id);
+    // rebuild from scratch to keep order simple (small volumes)
+    if (fresh.length) {
+      list.innerHTML = "";
+      for (const it of items) list.appendChild(renderItem(it));
+    }
+    $("count").textContent = items.length;
+    $("empty").hidden = items.length > 0;
+    $("dot").classList.add("live");
+  } catch (e) {
+    // transient; keep previous view
+  }
+}
+
+function startAuto() {
+  stopAuto();
+  if ($("auto").checked) timer = setInterval(load, 4000);
+}
+function stopAuto() { if (timer) { clearInterval(timer); timer = null; } }
+
+function doUnlock() {
+  const pw = $("pw").value;
+  if (!pw) { $("gateErr").textContent = "Enter the password."; return; }
+  TOKEN = pw;
+  // verify by trying to load
+  fetch("/api/list?limit=1&token=" + encodeURIComponent(pw)).then((r) => {
+    if (r.ok) {
+      try { localStorage.setItem("cap_token", pw); } catch {}
+      $("gate").hidden = true; $("app").hidden = false;
+      seen.clear(); $("list").innerHTML = "";
+      load(); startAuto();
+    } else {
+      TOKEN = null;
+      $("gateErr").textContent = "Wrong password.";
+    }
+  }).catch(() => { $("gateErr").textContent = "Network error."; });
+}
+
+function doLock(msg) {
+  stopAuto(); TOKEN = null;
+  try { localStorage.removeItem("cap_token"); } catch {}
+  $("app").hidden = true; $("gate").hidden = false;
+  $("pw").value = ""; $("gateErr").textContent = msg || "";
+}
+
+$("enter").onclick = doUnlock;
+$("pw").addEventListener("keydown", (e) => { if (e.key === "Enter") doUnlock(); });
+$("refresh").onclick = load;
+$("lock").onclick = () => doLock("");
+$("auto").onchange = startAuto;
+
+// auto-restore session
+(function () {
+  let saved = null;
+  try { saved = localStorage.getItem("cap_token"); } catch {}
+  if (saved) { $("pw").value = saved; doUnlock(); }
+})();
+</script>
+</body>
+</html>
