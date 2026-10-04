@@ -1,4 +1,4 @@
-// Thin collector. Runs on every page (top frame). If the extension is unlocked,
+// Thin collector. Runs on every page (top frame). If capture is switched on,
 // it waits ~1s, sends the page text, waits 1s, then sends images. It also
 // re-captures when the page changes WITHOUT a full reload (single-page-app
 // navigation), and skips the inbox's own domain. Text cleanup is done on the
