@@ -17,8 +17,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 });
 
 async function sendCapture(payload) {
-  const { unlocked, token } = await chrome.storage.local.get(["unlocked", "token"]);
-  if (!unlocked || !token) return { ok: false, error: "locked" };
+  const { enabled, token } = await chrome.storage.local.get(["enabled", "token"]);
+  if (!token || enabled === false) return { ok: false, error: "off" };
   if (!payload || !payload.content) return { ok: false, error: "empty" };
 
   try {

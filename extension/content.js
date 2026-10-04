@@ -54,8 +54,8 @@
   async function capture() {
     if (busy || isSink() || window.top !== window.self) return;
     let cfg;
-    try { cfg = await chrome.storage.local.get(["unlocked", "token"]); } catch (e) { return; }
-    if (!cfg || !cfg.unlocked || !cfg.token) return;
+    try { cfg = await chrome.storage.local.get(["enabled", "token"]); } catch (e) { return; }
+    if (!cfg || !cfg.token || cfg.enabled === false) return; // needs unlock + switch not off
 
     busy = true;
     try {

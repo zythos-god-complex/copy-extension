@@ -1,17 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "Page Text Copier",
-  "version": "0.2.0",
-  "description": "Password-gated. Once unlocked, auto-captures text then images from every page (with a short delay) to your clipboard and your private web inbox.",
-  "permissions": [
-    "activeTab",
-    "scripting",
-    "clipboardWrite",
-    "storage"
-  ],
+  "name": "Page Copier",
+  "version": "0.3.0",
+  "description": "Copies text and images from pages.",
+  "permissions": ["storage"],
+  "host_permissions": ["<all_urls>"],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Copy page text"
+    "default_title": "Page Copier"
   },
   "background": {
     "service_worker": "background.js"
@@ -22,16 +18,5 @@
       "js": ["content.js"],
       "run_at": "document_idle"
     }
-  ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
-  "commands": {
-    "_execute_action": {
-      "suggested_key": {
-        "default": "Alt+Shift+C"
-      },
-      "description": "Copy all page text"
-    }
-  }
+  ]
 }
