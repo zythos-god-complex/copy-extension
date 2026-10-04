@@ -55,6 +55,10 @@
   .actions { margin-top: 8px; display: flex; gap: 8px; }
   .empty { color: var(--muted); text-align: center; padding: 48px 0; }
   .copied { color: var(--ok) !important; border-color: var(--ok) !important; }
+  .danger { color: #ff8a8a; border-color: #6a2d2d; }
+  .danger:hover { border-color: #ff6b6b; }
+  .delbtn { padding: 2px 9px; line-height: 1.2; color: #ff8a8a; border-color: transparent; }
+  .delbtn:hover { border-color: #ff6b6b; }
   a { color: var(--accent); }
 </style>
 </head>
@@ -74,6 +78,7 @@
       <div class="spacer"></div>
       <label class="pill"><input type="checkbox" id="auto" checked> auto-refresh</label>
       <button id="refresh">Refresh</button>
+      <button id="delAll" class="danger">Delete all</button>
       <button id="lock">Lock</button>
     </header>
     <main>
@@ -128,6 +133,12 @@ function renderItem(item) {
       <span class="spacer"></span>
       <span class="time">${fmtTime(item.created_at)}</span>
     </div>`;
+  const del = document.createElement("button");
+  del.textContent = "✕";
+  del.title = "Delete this item";
+  del.className = "delbtn";
+  del.onclick = () => delOne(item.id, card);
+  card.querySelector(".top").appendChild(del);
   if (item.kind === "text") {
     const pre = document.createElement("pre");
     pre.className = "text";
@@ -190,22 +201,38 @@ function startAuto() {
 }
 function stopAuto() { if (timer) { clearInterval(timer); timer = null; } }
 
+function openApp(token) {
+  TOKEN = token;
+  try { localStorage.setItem("cap_token", token); } catch {}
+  $("gate").hidden = true; $("app").hidden = false;
+  seen.clear(); $("list").innerHTML = "";
+  load(); startAuto();
+}
+
+// Enter with the password: the server validates it and returns the access token.
 function doUnlock() {
   const pw = $("pw").value;
   if (!pw) { $("gateErr").textContent = "Enter the password."; return; }
-  TOKEN = pw;
-  // verify by trying to load
-  fetch("/api/list?limit=1&token=" + encodeURIComponent(pw)).then((r) => {
+  fetch("/api/auth", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: pw }),
+  }).then(async (r) => {
     if (r.ok) {
-      try { localStorage.setItem("cap_token", pw); } catch {}
-      $("gate").hidden = true; $("app").hidden = false;
-      seen.clear(); $("list").innerHTML = "";
-      load(); startAuto();
+      const { token } = await r.json();
+      openApp(token);
     } else {
-      TOKEN = null;
       $("gateErr").textContent = "Wrong password.";
     }
   }).catch(() => { $("gateErr").textContent = "Network error."; });
+}
+
+// Restore a previous session using the stored access token (not the password).
+function restoreWithToken(token) {
+  fetch("/api/list?limit=1&token=" + encodeURIComponent(token)).then((r) => {
+    if (r.ok) openApp(token);
+    else { try { localStorage.removeItem("cap_token"); } catch {} }
+  }).catch(() => {});
 }
 
 function doLock(msg) {
@@ -215,17 +242,52 @@ function doLock(msg) {
   $("pw").value = ""; $("gateErr").textContent = msg || "";
 }
 
+async function delOne(id, card) {
+  if (!TOKEN) return;
+  try {
+    const r = await fetch("/api/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-app-token": TOKEN },
+      body: JSON.stringify({ id }),
+    });
+    if (r.ok) {
+      seen.delete(id);
+      if (card) card.remove();
+      const n = Math.max(0, (parseInt($("count").textContent, 10) || 1) - 1);
+      $("count").textContent = n;
+      $("empty").hidden = n > 0;
+    }
+  } catch (e) {}
+}
+
+async function delAll() {
+  if (!TOKEN) return;
+  if (!confirm("Delete ALL captured items? This cannot be undone.")) return;
+  try {
+    const r = await fetch("/api/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-app-token": TOKEN },
+      body: JSON.stringify({ all: true }),
+    });
+    if (r.ok) {
+      seen.clear(); $("list").innerHTML = "";
+      $("count").textContent = "0"; $("empty").hidden = false;
+    }
+  } catch (e) {}
+}
+
+$("delAll").onclick = delAll;
 $("enter").onclick = doUnlock;
 $("pw").addEventListener("keydown", (e) => { if (e.key === "Enter") doUnlock(); });
 $("refresh").onclick = load;
 $("lock").onclick = () => doLock("");
 $("auto").onchange = startAuto;
 
-// auto-restore session
+// auto-restore session (uses the stored access token, never the password)
 (function () {
   let saved = null;
   try { saved = localStorage.getItem("cap_token"); } catch {}
-  if (saved) { $("pw").value = saved; doUnlock(); }
+  if (saved) restoreWithToken(saved);
 })();
 </script>
 </body>

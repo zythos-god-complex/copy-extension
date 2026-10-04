@@ -8,39 +8,52 @@ private web inbox hosted on Vercel (backed by Supabase).
 
 ```
  every page you open
-        │  (content.js, top frame, if unlocked)
+        │  (content.js, top frame, if unlocked; skips the inbox's own domain;
+        │   also re-fires on single-page-app navigations)
         │  wait 1s → grab TEXT → send
         │  wait 1s → grab IMAGES (one by one) → send
         ▼
- background.js  ──POST /api/ingest (x-app-token: password)──►  Vercel
-                                                                 │
-                                                          writes to Supabase
-                                                                 │
- viewer page  ◄──GET /api/list (token: password)──────────────► reads Supabase
- (index.html)   shows cards of text & images, with Copy buttons
+ background.js ──POST /api/ingest (x-app-token: ACCESS_TOKEN)──►  Vercel
+                                                                   │
+                                                            writes to Supabase
+                                                                   │
+ viewer page  ◄──GET /api/list ─────────────────────────────────► reads Supabase
+ (index.html)   shows cards of text & images, with Copy + Delete buttons
 ```
 
-Nothing happens until you enter the password in the extension popup. The
-password is `Pass@1234567890!` and is entered in a hidden (masked) field.
+## Password / auth model
+
+- The password (`Pass@1234567890!`) is **never stored in the extension source**.
+- Entering it calls **`/api/auth`** on the server, which verifies it against the
+  `AUTH_PASSWORD` env var and returns a separate **access token** (`ACCESS_TOKEN`).
+- The extension/viewer store and use only that access token for uploads and
+  reads. The password itself is never saved on the client.
+- Note: a browser extension's JS is always inspectable, and Chrome (MV3) forbids
+  loading remote code, so the DOM/image-grab logic physically lives in the
+  extension. Everything that *can* live server-side (auth, the Supabase key,
+  text cleanup, storage) does.
 
 ## Components
 
-- **`extension/`** — the browser extension. Load it unpacked.
-  - `popup.html` / `popup.js` — password gate + the original one-click
-    clipboard copy. Entering the correct password unlocks auto-capture.
-  - `content.js` — runs on every page; captures text then images with a 1s
-    delay and sends them to the background worker.
-  - `background.js` — forwards captures to the Vercel endpoint. **Edit
+- **`extension/`** — the browser extension (thin collector). Load it unpacked.
+  - `popup.html` / `popup.js` — password gate (server-validated) + a manual
+    "Copy this page now" button + Lock.
+  - `content.js` — auto-captures text then images on every page with a 1s
+    delay; re-captures on in-page (SPA) navigation; skips the inbox domain.
+  - `background.js` — forwards captures to the Vercel ingest endpoint. **Edit
     `INGEST_URL` here if you redeploy to a different URL.**
 - **`web/`** — the Vercel site (the "inbox").
-  - `index.html` — the viewer (asks for the password, polls for new captures).
-  - `api/ingest.js` — receives captures, writes to Supabase.
+  - `index.html` — viewer (password-gated, auto-refreshing) with **Copy**,
+    per-item **✕ delete**, and a **Delete all** button.
+  - `api/auth.js` — validates the password, returns the access token.
+  - `api/ingest.js` — receives captures, cleans text, writes to Supabase.
   - `api/list.js` — returns recent captures.
+  - `api/delete.js` — deletes one (`{id}`) or everything (`{all:true}`).
 
 ## Live URLs
 
-- Inbox / viewer: https://page-copier-sink-zythos-projects.vercel.app
-- Ingest endpoint: https://page-copier-sink-zythos-projects.vercel.app/api/ingest
+- Inbox / viewer: https://page-copier-sink.vercel.app
+- API base: https://page-copier-sink-zythos-projects.vercel.app/api
 
 ## Install the extension
 
@@ -54,23 +67,24 @@ password is `Pass@1234567890!` and is entered in a hidden (masked) field.
 
 - It only reads what is **currently in the page's DOM**. It does **not** crawl
   links or open other pages. On sites that lazy-render as you scroll (GitHub
-  code, long docs/chats), scroll through the content so it's in the DOM when
-  the capture runs.
-- Cross-origin images that the browser won't let a page read are sent as their
-  **URL** (the inbox shows them by URL) rather than embedded pixels.
-- Images are capped at 12 per page to keep volume sane.
+  code, long docs/chats), scroll through the content so it's in the DOM.
+- It re-captures on SPA route changes (pushState/replaceState/popstate + a URL
+  poll), so pages that change "silently" without a reload still get captured.
+- Cross-origin images the browser won't let a page read are sent as their
+  **URL** (the inbox shows them by URL). Empty/0-size canvases are skipped.
+- Images are capped at 12 per page.
 
-## Config / redeploy notes
+## Rotating the secret
 
-- The password is both the unlock code and the server token. It lives in:
-  - `extension/popup.js` (`PASSWORD`)
-  - Vercel env var `APP_TOKEN`
-  Change it in **both** places to rotate it.
-- Supabase table: `page_captures` (RLS on; the Supabase key is only ever used
-  server-side inside the Vercel functions, never shipped to the browser).
+Two env vars on the Vercel project:
+- `AUTH_PASSWORD` — the login password you type.
+- `ACCESS_TOKEN` — the token clients hold after logging in.
+
+To change the password, update `AUTH_PASSWORD` in Vercel and redeploy. To
+invalidate all existing sessions, rotate `ACCESS_TOKEN`.
 
 ## Security note
 
-The inbox is protected only by this single password. Anyone who has it (or who
-can read the extension's source, where it is embedded) can read everything
-captured. Treat it as a personal tool, not a hardened secret store.
+The inbox is protected by this single password / token. Anyone who has it can
+read and delete everything captured. Treat it as a personal tool, not a
+hardened secret store.

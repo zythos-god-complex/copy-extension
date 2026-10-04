@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "method_not_allowed" });
 
   const token = req.headers["x-app-token"] || req.query.token;
-  if (!token || token !== process.env.APP_TOKEN) {
+  if (!token || token !== process.env.ACCESS_TOKEN) {
     return res.status(401).json({ error: "unauthorized" });
   }
 

@@ -1,14 +1,15 @@
 // POST /api/ingest
 // Receives one capture (or an array / {items:[...]}) from the extension and
-// stores it in Supabase. Gated by the x-app-token header (the extension
-// password). The Supabase key lives only in this server function's env.
+// stores it in Supabase. Gated by the x-app-token header, which must equal the
+// ACCESS_TOKEN (obtained from /api/auth). The Supabase key lives only here.
+// Text cleanup also happens here, so the extension stays a thin collector.
 export default async function handler(req, res) {
   setCors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
 
   const token = req.headers["x-app-token"];
-  if (!token || token !== process.env.APP_TOKEN) {
+  if (!token || token !== process.env.ACCESS_TOKEN) {
     return res.status(401).json({ error: "unauthorized" });
   }
 
@@ -37,8 +38,9 @@ export default async function handler(req, res) {
       site_url: String(r.site_url || "").slice(0, 2000),
       site_title: String(r.site_title || "").slice(0, 500),
       kind: r.kind,
-      content: r.content.slice(0, 3000000),
-    }));
+      content: (r.kind === "text" ? cleanText(r.content) : r.content).slice(0, 3000000),
+    }))
+    .filter((r) => r.content.length > 0);
 
   if (!rows.length) return res.status(400).json({ error: "no_valid_rows" });
 
@@ -59,6 +61,23 @@ export default async function handler(req, res) {
   }
 
   return res.status(200).json({ ok: true, inserted: rows.length });
+}
+
+// Collapse whitespace, drop blank-line runs and consecutive duplicate lines.
+function cleanText(raw) {
+  const lines = String(raw)
+    .replace(/\r/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .split("\n");
+  const out = [];
+  for (const l of lines) {
+    const s = l.replace(/[ \t]+/g, " ").trim();
+    if (s === "" && out[out.length - 1] === "") continue;
+    if (s !== "" && s === out[out.length - 1]) continue;
+    out.push(s);
+  }
+  return out.join("\n").trim();
 }
 
 function setCors(res) {
