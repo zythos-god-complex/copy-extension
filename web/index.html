@@ -3,87 +3,161 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Capture Inbox</title>
+<title>Inbox</title>
 <style>
   :root {
-    --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --line: #2a2f3a;
-    --fg: #e6e8ec; --muted: #9aa3b2; --accent: #6ea8fe; --ok: #58d68d;
+    --bg: #11131a;
+    --panel: #171a21;
+    --panel2: #1d212a;
+    --line: #272c37;
+    --fg: #eef0f3;
+    --muted: #818a9c;
+    --accent: #5b8def;
+    --ok: #3ddc84;
+    --danger: #ff6b6b;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--fg);
-    font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
-  header { position: sticky; top: 0; z-index: 5; background: var(--panel);
-    border-bottom: 1px solid var(--line); padding: 12px 16px;
-    display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  header h1 { font-size: 16px; margin: 0; font-weight: 650; }
-  header .spacer { flex: 1; }
-  .pill { font-size: 12px; color: var(--muted); }
-  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
-    background: var(--muted); margin-right: 5px; vertical-align: middle; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font: 14px/1.5 -apple-system, "SF Pro Text", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* icon button, shared */
+  .ibtn {
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--panel2);
+    color: var(--muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex: none; transition: border-color .15s ease, color .15s ease;
+  }
+  .ibtn svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .ibtn:hover { border-color: var(--accent); color: var(--fg); }
+  .ibtn.danger:hover { border-color: var(--danger); color: var(--danger); }
+  .ibtn.ok { border-color: var(--ok); color: var(--ok); }
+
+  /* header */
+  header {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--panel); border-bottom: 1px solid var(--line);
+    padding: 10px 16px; display: flex; align-items: center; gap: 10px;
+  }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 650; font-size: 14px; }
+  .brand svg { width: 17px; height: 17px; stroke: var(--accent); stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
   .dot.live { background: var(--ok); }
-  button { font: inherit; cursor: pointer; border: 1px solid var(--line);
-    background: var(--panel2); color: var(--fg); padding: 6px 10px; border-radius: 8px; }
-  button:hover { border-color: var(--accent); }
-  main { max-width: 860px; margin: 0 auto; padding: 16px; }
-  .gate { max-width: 360px; margin: 14vh auto; background: var(--panel);
-    border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
-  .gate h2 { margin: 0 0 4px; font-size: 18px; }
-  .gate p { margin: 0 0 16px; color: var(--muted); font-size: 13px; }
-  .gate input { width: 100%; padding: 10px 12px; border-radius: 9px;
-    border: 1px solid var(--line); background: var(--panel2); color: var(--fg); }
-  .gate button { width: 100%; margin-top: 12px; padding: 10px; background: var(--accent);
-    color: #0b0d12; border: none; font-weight: 650; }
-  .gate .err { color: #ff6b6b; font-size: 12.5px; min-height: 16px; margin-top: 8px; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
-    padding: 14px; margin-bottom: 14px; }
-  .card .top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-  .kind { font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
-    padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
-  .kind.text { color: var(--accent); border-color: #2d4a7a; }
-  .kind.image { color: #d7a6ff; border-color: #4a2d7a; }
-  .site { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis;
-    white-space: nowrap; max-width: 46%; }
-  .url { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis;
-    white-space: nowrap; flex: 1; }
-  .time { color: var(--muted); font-size: 12px; white-space: nowrap; }
-  .card .top .spacer { flex: 1; }
-  pre.text { white-space: pre-wrap; word-break: break-word; margin: 0;
-    background: var(--panel2); border: 1px solid var(--line); border-radius: 9px;
-    padding: 10px 12px; max-height: 320px; overflow: auto; font: 12.5px/1.5 ui-monospace, monospace; }
-  .imgwrap { background: var(--panel2); border: 1px solid var(--line); border-radius: 9px; padding: 8px; }
-  .imgwrap img { max-width: 100%; max-height: 420px; display: block; border-radius: 6px; }
-  .actions { margin-top: 8px; display: flex; gap: 8px; }
-  .empty { color: var(--muted); text-align: center; padding: 48px 0; }
-  .copied { color: var(--ok) !important; border-color: var(--ok) !important; }
-  .danger { color: #ff8a8a; border-color: #6a2d2d; }
-  .danger:hover { border-color: #ff6b6b; }
-  .delbtn { padding: 2px 9px; line-height: 1.2; color: #ff8a8a; border-color: transparent; }
-  .delbtn:hover { border-color: #ff6b6b; }
+  header .spacer { flex: 1; }
+  header .tools { display: flex; gap: 6px; }
+
+  /* password gate */
+  .gate { max-width: 300px; margin: 18vh auto; display: flex; flex-direction: column; gap: 10px; padding: 0 20px; }
+  .gate input {
+    width: 100%; padding: 11px 13px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--panel2); color: var(--fg);
+    font-size: 14px; outline: none; transition: border-color .15s ease;
+  }
+  .gate input:focus { border-color: var(--accent); }
+  .gate button {
+    padding: 11px; border-radius: 10px; border: none;
+    background: var(--accent); color: #0b0d12; font-weight: 600;
+    font-size: 14px; cursor: pointer;
+  }
+  .gate .err { color: var(--danger); font-size: 12.5px; min-height: 16px; text-align: center; }
+
+  /* layout */
+  main { padding: 16px; }
+  .columns {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    max-width: 1280px; margin: 0 auto;
+  }
+  @media (max-width: 760px) {
+    .columns { grid-template-columns: 1fr; }
+  }
+  .col-head {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--muted); margin-bottom: 10px; padding: 0 2px;
+  }
+  .col-head .n { color: var(--fg); background: var(--panel2); border-radius: 999px; padding: 1px 8px; font-size: 11px; }
+  .col-empty { color: var(--muted); font-size: 13px; text-align: center; padding: 40px 10px; border: 1px dashed var(--line); border-radius: 12px; }
+
+  /* cards */
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    margin-bottom: 10px; overflow: hidden;
+  }
+  .card .meta {
+    display: flex; align-items: center; gap: 7px; padding: 8px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  .card .meta .src { font-size: 12px; color: var(--fg); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+  .card .meta .time { font-size: 11.5px; color: var(--muted); }
+  .card .meta .spacer { flex: 1; }
+  .card .meta .acts { display: flex; gap: 4px; }
+  .card .meta .ibtn { width: 26px; height: 26px; border-radius: 6px; }
+  .card .meta .ibtn svg { width: 13px; height: 13px; }
+
+  .imgbox { background: var(--panel2); display: flex; align-items: center; justify-content: center; min-height: 80px; max-height: 320px; overflow: hidden; }
+  .imgbox img { width: 100%; max-height: 320px; object-fit: contain; display: block; }
+  .imgbox .broken { color: var(--muted); font-size: 12.5px; padding: 24px; text-align: center; }
+  .imgbox .broken a { color: var(--accent); }
+
+  .textbox {
+    padding: 10px 12px; font: 13px/1.5 ui-monospace, "SF Mono", monospace;
+    white-space: pre-wrap; word-break: break-word; color: var(--fg);
+    max-height: 120px; overflow: hidden; position: relative; cursor: pointer;
+  }
+  .textbox.expanded { max-height: none; cursor: default; }
+  .textbox:not(.expanded)::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 36px;
+    background: linear-gradient(to bottom, transparent, var(--panel));
+  }
+
   a { color: var(--accent); }
 </style>
 </head>
 <body>
   <div id="gate" class="gate">
-    <h2>Capture Inbox</h2>
-    <p>Enter your password to view captured text &amp; images.</p>
     <input id="pw" type="password" placeholder="Password" autocomplete="current-password" />
-    <button id="enter">View</button>
+    <button id="enter">Unlock</button>
     <div id="gateErr" class="err"></div>
   </div>
 
   <div id="app" hidden>
     <header>
-      <h1>Capture Inbox</h1>
-      <span class="pill"><span id="dot" class="dot"></span><span id="count">0</span> items</span>
+      <div class="brand">
+        <svg viewBox="0 0 24 24"><path d="M3 7l9 6 9-6"/><rect x="3" y="5" width="18" height="14" rx="2"/></svg>
+        Inbox
+      </div>
+      <div class="status"><span id="dot" class="dot"></span><span id="count">0</span></div>
       <div class="spacer"></div>
-      <label class="pill"><input type="checkbox" id="auto" checked> auto-refresh</label>
-      <button id="refresh">Refresh</button>
-      <button id="delAll" class="danger">Delete all</button>
-      <button id="lock">Lock</button>
+      <div class="tools">
+        <button id="refresh" class="ibtn" title="Refresh">
+          <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 4v5h-5"/></svg>
+        </button>
+        <button id="delAll" class="ibtn danger" title="Delete all">
+          <svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+        <button id="lock" class="ibtn" title="Lock">
+          <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        </button>
+      </div>
     </header>
     <main>
-      <div id="list"></div>
-      <div id="empty" class="empty">Nothing captured yet. Unlock the extension and browse.</div>
+      <div class="columns">
+        <section>
+          <div class="col-head">Images <span class="n" id="imgCount">0</span></div>
+          <div id="imgList"></div>
+          <div class="col-empty" id="imgEmpty">No images yet</div>
+        </section>
+        <section>
+          <div class="col-head">Text <span class="n" id="textCount">0</span></div>
+          <div id="textList"></div>
+          <div class="col-empty" id="textEmpty">No text yet</div>
+        </section>
+      </div>
     </main>
   </div>
 
@@ -91,12 +165,28 @@
 const $ = (id) => document.getElementById(id);
 let TOKEN = null;
 let timer = null;
-const seen = new Set();
+const seenImg = new Set();
+const seenText = new Set();
 
-function fmtTime(iso) {
-  try { const d = new Date(iso); return d.toLocaleString(); } catch { return iso || ""; }
-}
+const ICON_COPY = '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+const ICON_CHECK = '<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>';
+const ICON_TRASH = '<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
+
 function esc(s) { return (s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function domain(url) {
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url || "unknown"; }
+}
+
+function relTime(iso) {
+  const d = new Date(iso);
+  const s = Math.max(0, (Date.now() - d.getTime()) / 1000);
+  if (s < 45) return "now";
+  if (s < 3600) return Math.floor(s / 60) + "m";
+  if (s < 86400) return Math.floor(s / 3600) + "h";
+  if (s < 604800) return Math.floor(s / 86400) + "d";
+  return d.toLocaleDateString();
+}
 
 async function copyText(txt, btn) {
   try { await navigator.clipboard.writeText(txt); }
@@ -105,69 +195,92 @@ async function copyText(txt, btn) {
     ta.value = txt; document.body.appendChild(ta); ta.select();
     document.execCommand("copy"); ta.remove();
   }
-  const old = btn.textContent; btn.textContent = "Copied ✓"; btn.classList.add("copied");
-  setTimeout(() => { btn.textContent = old; btn.classList.remove("copied"); }, 1200);
+  flashOk(btn);
 }
 
 async function copyImage(src, btn) {
   try {
     const blob = await (await fetch(src)).blob();
     await navigator.clipboard.write([new ClipboardItem({ [blob.type || "image/png"]: blob })]);
-    const old = btn.textContent; btn.textContent = "Copied ✓"; btn.classList.add("copied");
-    setTimeout(() => { btn.textContent = old; btn.classList.remove("copied"); }, 1200);
+    flashOk(btn);
   } catch (e) {
-    copyText(src, btn); // fallback: copy the image URL/data
+    copyText(src, btn);
   }
 }
 
-function renderItem(item) {
+function flashOk(btn) {
+  const old = btn.innerHTML;
+  btn.innerHTML = ICON_CHECK;
+  btn.classList.add("ok");
+  setTimeout(() => { btn.innerHTML = old; btn.classList.remove("ok"); }, 1100);
+}
+
+function metaRow(item) {
+  const row = document.createElement("div");
+  row.className = "meta";
+  const site = esc(item.site_title || domain(item.site_url));
+  const full = esc(`${item.site_title || ""}\n${item.site_url || ""}`.trim());
+  row.innerHTML = `
+    <span class="src" title="${full}">${domain(item.site_url)}</span>
+    <span class="time" title="${esc(new Date(item.created_at).toLocaleString())}">${relTime(item.created_at)}</span>
+    <span class="spacer"></span>
+    <span class="acts"></span>`;
+  return row;
+}
+
+function renderImage(item) {
   const card = document.createElement("div");
   card.className = "card";
-  const site = esc(item.site_title || "");
-  const url = esc(item.site_url || "");
-  card.innerHTML = `
-    <div class="top">
-      <span class="kind ${item.kind}">${item.kind}</span>
-      <span class="site" title="${site}">${site || "(untitled)"}</span>
-      <span class="url" title="${url}">${url}</span>
-      <span class="spacer"></span>
-      <span class="time">${fmtTime(item.created_at)}</span>
-    </div>`;
-  const del = document.createElement("button");
-  del.textContent = "✕";
-  del.title = "Delete this item";
-  del.className = "delbtn";
-  del.onclick = () => delOne(item.id, card);
-  card.querySelector(".top").appendChild(del);
-  if (item.kind === "text") {
-    const pre = document.createElement("pre");
-    pre.className = "text";
-    pre.textContent = item.content;
-    card.appendChild(pre);
-    const actions = document.createElement("div");
-    actions.className = "actions";
-    const b = document.createElement("button");
-    b.textContent = "Copy text";
-    b.onclick = () => copyText(item.content, b);
-    actions.appendChild(b);
-    card.appendChild(actions);
-  } else {
-    const wrap = document.createElement("div");
-    wrap.className = "imgwrap";
-    const img = document.createElement("img");
-    img.loading = "lazy";
-    img.src = item.content;
-    img.onerror = () => { wrap.innerHTML = '<span class="pill">image unavailable — <a href="'+url+'" target="_blank">source</a></span>'; };
-    wrap.appendChild(img);
-    card.appendChild(wrap);
-    const actions = document.createElement("div");
-    actions.className = "actions";
-    const b = document.createElement("button");
-    b.textContent = "Copy image";
-    b.onclick = () => copyImage(item.content, b);
-    actions.appendChild(b);
-    card.appendChild(actions);
-  }
+  const row = metaRow(item);
+  const acts = row.querySelector(".acts");
+
+  const copyBtn = document.createElement("button");
+  copyBtn.className = "ibtn"; copyBtn.title = "Copy image"; copyBtn.innerHTML = ICON_COPY;
+  copyBtn.onclick = () => copyImage(item.content, copyBtn);
+
+  const delBtn = document.createElement("button");
+  delBtn.className = "ibtn danger"; delBtn.title = "Delete"; delBtn.innerHTML = ICON_TRASH;
+  delBtn.onclick = () => delOne(item.id, card, "image");
+
+  acts.append(copyBtn, delBtn);
+  card.appendChild(row);
+
+  const box = document.createElement("div");
+  box.className = "imgbox";
+  const img = document.createElement("img");
+  img.loading = "lazy";
+  img.src = item.content;
+  img.onerror = () => {
+    box.innerHTML = `<div class="broken">Image unavailable. <a href="${esc(item.site_url)}" target="_blank">Open source</a></div>`;
+  };
+  box.appendChild(img);
+  card.appendChild(box);
+  return card;
+}
+
+function renderText(item) {
+  const card = document.createElement("div");
+  card.className = "card";
+  const row = metaRow(item);
+  const acts = row.querySelector(".acts");
+
+  const copyBtn = document.createElement("button");
+  copyBtn.className = "ibtn"; copyBtn.title = "Copy text"; copyBtn.innerHTML = ICON_COPY;
+  copyBtn.onclick = (e) => { e.stopPropagation(); copyText(item.content, copyBtn); };
+
+  const delBtn = document.createElement("button");
+  delBtn.className = "ibtn danger"; delBtn.title = "Delete"; delBtn.innerHTML = ICON_TRASH;
+  delBtn.onclick = (e) => { e.stopPropagation(); delOne(item.id, card, "text"); };
+
+  acts.append(copyBtn, delBtn);
+  card.appendChild(row);
+
+  const box = document.createElement("div");
+  box.className = "textbox";
+  box.textContent = item.content;
+  box.title = "Click to expand";
+  box.onclick = () => box.classList.toggle("expanded");
+  card.appendChild(box);
   return card;
 }
 
@@ -176,40 +289,49 @@ async function load() {
   $("dot").classList.remove("live");
   try {
     const r = await fetch("/api/list?limit=150&token=" + encodeURIComponent(TOKEN));
-    if (r.status === 401) { doLock("Session expired — enter password again."); return; }
+    if (r.status === 401) { doLock("Session expired. Enter password again."); return; }
     const { items } = await r.json();
-    const list = $("list");
-    // newest first; prepend any we haven't shown
-    const fresh = items.filter((it) => !seen.has(it.id));
-    for (const it of fresh) seen.add(it.id);
-    // rebuild from scratch to keep order simple (small volumes)
-    if (fresh.length) {
-      list.innerHTML = "";
-      for (const it of items) list.appendChild(renderItem(it));
+
+    const imgs = items.filter((i) => i.kind === "image");
+    const texts = items.filter((i) => i.kind === "text");
+
+    const freshImg = imgs.filter((i) => !seenImg.has(i.id));
+    const freshText = texts.filter((i) => !seenText.has(i.id));
+    for (const i of freshImg) seenImg.add(i.id);
+    for (const i of freshText) seenText.add(i.id);
+
+    if (freshImg.length) {
+      $("imgList").innerHTML = "";
+      for (const i of imgs) $("imgList").appendChild(renderImage(i));
     }
+    if (freshText.length) {
+      $("textList").innerHTML = "";
+      for (const i of texts) $("textList").appendChild(renderText(i));
+    }
+
     $("count").textContent = items.length;
-    $("empty").hidden = items.length > 0;
+    $("imgCount").textContent = imgs.length;
+    $("textCount").textContent = texts.length;
+    $("imgEmpty").hidden = imgs.length > 0;
+    $("textEmpty").hidden = texts.length > 0;
     $("dot").classList.add("live");
   } catch (e) {
-    // transient; keep previous view
+    // transient, keep previous view
   }
 }
 
-function startAuto() {
-  stopAuto();
-  if ($("auto").checked) timer = setInterval(load, 4000);
-}
+function startAuto() { stopAuto(); timer = setInterval(load, 4000); }
 function stopAuto() { if (timer) { clearInterval(timer); timer = null; } }
 
 function openApp(token) {
   TOKEN = token;
   try { localStorage.setItem("cap_token", token); } catch {}
   $("gate").hidden = true; $("app").hidden = false;
-  seen.clear(); $("list").innerHTML = "";
+  seenImg.clear(); seenText.clear();
+  $("imgList").innerHTML = ""; $("textList").innerHTML = "";
   load(); startAuto();
 }
 
-// Enter with the password: the server validates it and returns the access token.
 function doUnlock() {
   const pw = $("pw").value;
   if (!pw) { $("gateErr").textContent = "Enter the password."; return; }
@@ -227,7 +349,6 @@ function doUnlock() {
   }).catch(() => { $("gateErr").textContent = "Network error."; });
 }
 
-// Restore a previous session using the stored access token (not the password).
 function restoreWithToken(token) {
   fetch("/api/list?limit=1&token=" + encodeURIComponent(token)).then((r) => {
     if (r.ok) openApp(token);
@@ -242,7 +363,7 @@ function doLock(msg) {
   $("pw").value = ""; $("gateErr").textContent = msg || "";
 }
 
-async function delOne(id, card) {
+async function delOne(id, card, kind) {
   if (!TOKEN) return;
   try {
     const r = await fetch("/api/delete", {
@@ -251,18 +372,17 @@ async function delOne(id, card) {
       body: JSON.stringify({ id }),
     });
     if (r.ok) {
-      seen.delete(id);
+      if (kind === "image") { seenImg.delete(id); $("imgCount").textContent = Math.max(0, +$("imgCount").textContent - 1); $("imgEmpty").hidden = +$("imgCount").textContent > 0; }
+      else { seenText.delete(id); $("textCount").textContent = Math.max(0, +$("textCount").textContent - 1); $("textEmpty").hidden = +$("textCount").textContent > 0; }
       if (card) card.remove();
-      const n = Math.max(0, (parseInt($("count").textContent, 10) || 1) - 1);
-      $("count").textContent = n;
-      $("empty").hidden = n > 0;
+      $("count").textContent = Math.max(0, (parseInt($("count").textContent, 10) || 1) - 1);
     }
   } catch (e) {}
 }
 
 async function delAll() {
   if (!TOKEN) return;
-  if (!confirm("Delete ALL captured items? This cannot be undone.")) return;
+  if (!confirm("Delete all captured items? This cannot be undone.")) return;
   try {
     const r = await fetch("/api/delete", {
       method: "POST",
@@ -270,8 +390,10 @@ async function delAll() {
       body: JSON.stringify({ all: true }),
     });
     if (r.ok) {
-      seen.clear(); $("list").innerHTML = "";
-      $("count").textContent = "0"; $("empty").hidden = false;
+      seenImg.clear(); seenText.clear();
+      $("imgList").innerHTML = ""; $("textList").innerHTML = "";
+      $("count").textContent = "0"; $("imgCount").textContent = "0"; $("textCount").textContent = "0";
+      $("imgEmpty").hidden = false; $("textEmpty").hidden = false;
     }
   } catch (e) {}
 }
@@ -281,9 +403,7 @@ $("enter").onclick = doUnlock;
 $("pw").addEventListener("keydown", (e) => { if (e.key === "Enter") doUnlock(); });
 $("refresh").onclick = load;
 $("lock").onclick = () => doLock("");
-$("auto").onchange = startAuto;
 
-// auto-restore session (uses the stored access token, never the password)
 (function () {
   let saved = null;
   try { saved = localStorage.getItem("cap_token"); } catch {}

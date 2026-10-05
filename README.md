@@ -1,7 +1,7 @@
 # Page Text Copier + Web Inbox
 
 A Chrome (MV3) extension that, once unlocked with a password, **auto-captures
-text and images from every page you visit** — to your clipboard *and* to a
+text and images from every page you visit** - to your clipboard *and* to a
 private web inbox hosted on Vercel (backed by Supabase).
 
 ## How it works
@@ -35,20 +35,20 @@ private web inbox hosted on Vercel (backed by Supabase).
 
 ## Components
 
-- **`extension/`** — the browser extension (thin collector). Load it unpacked.
-  - `popup.html` / `popup.js` — password gate (server-validated) + a manual
+- **`extension/`** - the browser extension (thin collector). Load it unpacked.
+  - `popup.html` / `popup.js` - password gate (server-validated) + a manual
     "Copy this page now" button + Lock.
-  - `content.js` — auto-captures text then images on every page with a 1s
+  - `content.js` - auto-captures text then images on every page with a 1s
     delay; re-captures on in-page (SPA) navigation; skips the inbox domain.
-  - `background.js` — forwards captures to the Vercel ingest endpoint. **Edit
+  - `background.js` - forwards captures to the Vercel ingest endpoint. **Edit
     `INGEST_URL` here if you redeploy to a different URL.**
-- **`web/`** — the Vercel site (the "inbox").
-  - `index.html` — viewer (password-gated, auto-refreshing) with **Copy**,
+- **`web/`** - the Vercel site (the "inbox").
+  - `index.html` - viewer (password-gated, auto-refreshing) with **Copy**,
     per-item **✕ delete**, and a **Delete all** button.
-  - `api/auth.js` — validates the password, returns the access token.
-  - `api/ingest.js` — receives captures, cleans text, writes to Supabase.
-  - `api/list.js` — returns recent captures.
-  - `api/delete.js` — deletes one (`{id}`) or everything (`{all:true}`).
+  - `api/auth.js` - validates the password, returns the access token.
+  - `api/ingest.js` - receives captures, cleans text, writes to Supabase.
+  - `api/list.js` - returns recent captures.
+  - `api/delete.js` - deletes one (`{id}`) or everything (`{all:true}`).
 
 ## Live URLs
 
@@ -77,8 +77,8 @@ private web inbox hosted on Vercel (backed by Supabase).
 ## Rotating the secret
 
 Two env vars on the Vercel project:
-- `AUTH_PASSWORD` — the login password you type.
-- `ACCESS_TOKEN` — the token clients hold after logging in.
+- `AUTH_PASSWORD` - the login password you type.
+- `ACCESS_TOKEN` - the token clients hold after logging in.
 
 To change the password, update `AUTH_PASSWORD` in Vercel and redeploy. To
 invalidate all existing sessions, rotate `ACCESS_TOKEN`.
